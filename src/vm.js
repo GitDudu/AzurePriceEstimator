@@ -10,6 +10,7 @@ class VM extends Component {
     this.state = {
       loc: 'uks',
       ranges: [20, 109, 30, 22],
+      vmProvider: 1,
       vmprices: [40.30, 74.46, 149.65, 299.30],
       vmBillOpt: 'payAsYouGo',
       payAsYouGo: {
@@ -30,6 +31,14 @@ class VM extends Component {
         ne: [21.92, 38.03, 76.07, 152.11],
         we: [23.56, 41.26, 82.51, 165.02]
       },
+      horizonPrice: {
+        '1': [1325, 775, 196, 27.7, 23.6],
+        '12': [1265, 745, 140.5, 19.8, 16.5],
+        '24': [1215, 710, 130, 18.4, 15.8],
+        '36': [1165, 680, 124, 17.45, 15.2]
+      },
+      vmHorizonSubTerm: '1',
+      horizonStorage: 1,
       vmTransac: 100000,
       vmOSDisk: 5.07,
       weekendCheck: false,
@@ -63,6 +72,10 @@ class VM extends Component {
 
   updateVmPrice() {
     var prices = this.state[this.state.vmBillOpt][this.state.loc].slice();
+    if (this.state.vmProvider === 2) {
+      var unit = this.state.horizonPrice[this.state.vmHorizonSubTerm][3];
+      prices = [unit, unit * 2, unit * 4, unit * 8];
+    }
     this.setState({ vmprices: prices });
   }
 
@@ -82,8 +95,16 @@ class VM extends Component {
       else
         sum += this.state.ranges[i] * this.state.vmprices[i];
     }
-    return Math.round(sum +
-      (Number(this.state.vmOSDisk) + Number(this.state.vmTransac) * 0.00036) * this.state.ranges.reduce(this.reducer));
+    if (this.state.vmProvider === 1) {
+      return Math.round(sum +
+        (Number(this.state.vmOSDisk) + Number(this.state.vmTransac) * 0.00036) * this.state.ranges.reduce(this.reducer));
+    }
+    else if (this.state.vmProvider === 2) {
+      var price = this.state.horizonPrice[this.state.vmHorizonSubTerm];
+      return Math.round(sum + Number(price[4]) * this.state.ranges.reduce(this.reducer) + price[0] + price[1] + Number(this.state.horizonStorage) * price[2]);
+    }
+    else
+      return 0;
   }
 
   getTotalDBPrice() {
@@ -172,6 +193,14 @@ class VM extends Component {
     this.setState({ loc: e.target.value }, () => { this.updateVmPrice(); this.getTotalPrice() });
   }
 
+  updateVMProvider(p) {
+    this.setState({ vmProvider: p }, () => { this.updateVmPrice(); this.getTotalPrice() });
+  }
+
+  updateHorizonSubTerm(e) {
+    this.setState({ vmHorizonSubTerm: e.target.value }, () => { this.updateVmPrice(); this.getTotalPrice() });
+  }
+
   updateWeekendCheck(e) {
     this.setState({ weekendCheck: e.target.checked }, () => this.getTotalPrice());
   }
@@ -214,101 +243,201 @@ class VM extends Component {
           Virtual machines
         </header>
         <div className="card-body">
-          <form>
-            <div className="form-group">
-              <div className="row">
-                <legend className="col-sm-2 col-form-label pt-0">Billing option</legend>
-                <div className="col-sm-10">
-                  <div className="form-check form-check-inline">
-                    <input className="form-check-input" type="radio" defaultChecked onChange={() => this.handleChangeBilling('payAsYouGo')} id="vmRadio1" name="vmRadio" />
-                    <label className="form-check-label" htmlFor="vmRadio1">Pay as you go</label>
-                  </div>
-                  <div className="form-check form-check-inline">
-                    <input className="form-check-input" type="radio" onChange={() => this.handleChangeBilling('oneYearResv')} id="vmRadio2" name="vmRadio" />
-                    <label className="form-check-label" htmlFor="vmRadio2">1 year reserved (~25% savings)</label>
-                  </div>
-                  <div className="form-check form-check-inline">
-                    <input className="form-check-input" type="radio" onChange={() => this.handleChangeBilling('threeYearResv')} id="vmRadio3" name="vmRadio" />
-                    <label className="form-check-label" htmlFor="vmRadio3">3 year reserved (~47% savings)</label>
+          <ul className="nav nav-tabs" id="myTab" role="tablist" style={{ marginBottom: '1rem' }}>
+            <li className="nav-item">
+              <a className="nav-link active" id="azure-tab" onClick={() => this.updateVMProvider(1)} data-toggle="tab" href="#azure" role="tab" aria-controls="azure" aria-selected="true">Azure</a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" id="horizon-tab" onClick={() => this.updateVMProvider(2)} data-toggle="tab" href="#horizon" role="tab" aria-controls="horizon" aria-selected="false">VMware Horizon Cloud</a>
+            </li>
+          </ul>
+          <div className="tab-content">
+            <form className="tab-pane fade show active" id="azure" role="tabpanel" aria-labelledby="azure-tab">
+              <div className="form-group">
+                <div className="row">
+                  <legend className="col-sm-2 col-form-label pt-0">Billing option</legend>
+                  <div className="col-sm-10">
+                    <div className="form-check form-check-inline">
+                      <input className="form-check-input" type="radio" defaultChecked onChange={() => this.handleChangeBilling('payAsYouGo')} id="vmRadio1" name="vmRadio" />
+                      <label className="form-check-label" htmlFor="vmRadio1">Pay as you go</label>
+                    </div>
+                    <div className="form-check form-check-inline">
+                      <input className="form-check-input" type="radio" onChange={() => this.handleChangeBilling('oneYearResv')} id="vmRadio2" name="vmRadio" />
+                      <label className="form-check-label" htmlFor="vmRadio2">1 year reserved (~25% savings)</label>
+                    </div>
+                    <div className="form-check form-check-inline">
+                      <input className="form-check-input" type="radio" onChange={() => this.handleChangeBilling('threeYearResv')} id="vmRadio3" name="vmRadio" />
+                      <label className="form-check-label" htmlFor="vmRadio3">3 year reserved (~47% savings)</label>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="form-group">
-              <div className="row">
-                <legend className="col-sm-2 col-form-label" htmlFor="vmTransac">Storage transactions</legend>
-                <div className="col-sm-4">
-                  <input type="input" className="form-control" name="vmTransac" id="vmTransac" value={this.state.vmTransac} onChange={(e) => this.updateState(e, 'vmTransac')}></input>
-                </div>
-                <legend className="col-sm-2 col-form-label" htmlFor="vmOSDisk">Managed OS Disks</legend>
-                <div className="col-sm-4">
-                  <select type="select" className="form-control" name="vmOSDisk" id="vmOSDisk" value={this.state.vmOSDisk} onChange={(e) => this.updateState(e, 'vmOSDisk')}>
-                    <option value="5.07">3 &#215; 32GB ($5.07/month)</option>
-                    <option value="6.62">2 &#215; 64GB ($6.62/month)</option>
-                    <option value="6.48">1 &#215; 128GB ($6.48/month)</option>
-                  </select>
+              <div className="form-group">
+                <div className="row">
+                  <legend className="col-sm-2 col-form-label" htmlFor="vmTransac">Storage transactions</legend>
+                  <div className="col-sm-4">
+                    <input type="input" className="form-control" name="vmTransac" id="vmTransac" value={this.state.vmTransac} onChange={(e) => this.updateState(e, 'vmTransac')}></input>
+                  </div>
+                  <legend className="col-sm-2 col-form-label" htmlFor="vmOSDisk">Managed OS Disks</legend>
+                  <div className="col-sm-4">
+                    <select type="select" className="form-control" name="vmOSDisk" id="vmOSDisk" value={this.state.vmOSDisk} onChange={(e) => this.updateState(e, 'vmOSDisk')}>
+                      <option value="5.07">3 &#215; 32GB ($5.07/month)</option>
+                      <option value="6.62">2 &#215; 64GB ($6.62/month)</option>
+                      <option value="6.48">1 &#215; 128GB ($6.48/month)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="form-group row">
-              <div className="col-sm-6">
-                <div className="form-check form-check-inline">
-                  <label className="form-check-label" htmlFor="weekendCheck">
-                    Turn off Basic and Medium machines on weekends?
+              <div className="form-group row">
+                <div className="col-sm-6">
+                  <div className="form-check form-check-inline">
+                    <label className="form-check-label" htmlFor="weekendCheck">
+                      Turn off Basic and Medium machines on weekends?
                   </label>
-                  <input className="form-check-input" type="checkbox" id="weekendCheck" style={{ 'marginLeft': "10px" }} checked={this.state.weekendCheck} onChange={(e) => this.updateWeekendCheck(e)} />
+                    <input className="form-check-input" type="checkbox" id="weekendCheck" style={{ 'marginLeft': "10px" }} checked={this.state.weekendCheck} onChange={(e) => this.updateWeekendCheck(e)} />
+                  </div>
                 </div>
               </div>
-            </div>
-            {this.renderSlider(0, 'Basic')}
-            {this.renderSlider(1, 'Medium')}
-            {this.renderSlider(2, 'High')}
-            {this.renderSlider(3, 'Ultra')}
-            <table className="table">
-              <thead>
-                <tr>
-                  <th scope="col">VM config</th>
-                  <th scope="col">Unit price</th>
-                  <th scope="col">Number</th>
-                  <th scope="col">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">Basic {this.renderInfoIcon("B2S: 2 CPU, 4GB memory & 8GB temporary memory")}</th>
-                  <td>{this.state.vmprices[0]}</td>
-                  <td>{this.state.ranges[0]}</td>
-                  <td className="vmprice">{Math.round(this.state.vmprices[0] * this.state.ranges[0])}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Medium {this.renderInfoIcon("B2MS: 2 CPU, 8GB memory & 16GB temporary memory")}</th>
-                  <td>{this.state.vmprices[1]}</td>
-                  <td>{this.state.ranges[1]}</td>
-                  <td className="vmprice">{Math.round(this.state.vmprices[1] * this.state.ranges[1])}</td>
-                </tr>
-                <tr>
-                  <th scope="row">High {this.renderInfoIcon("B4MS: 4 CPU, 16GB memory & 32GB temporary memory")}</th>
-                  <td>{this.state.vmprices[2]}</td>
-                  <td>{this.state.ranges[2]}</td>
-                  <td className="vmprice">{Math.round(this.state.vmprices[2] * this.state.ranges[2])}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Ultra {this.renderInfoIcon("B8MS: 8 CPU, 32GB memory & 64GB temporary memory")}</th>
-                  <td>{this.state.vmprices[3]}</td>
-                  <td>{this.state.ranges[3]}</td>
-                  <td className="vmprice">{Math.round(this.state.vmprices[3] * this.state.ranges[3])}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div className="form-group">
-              <div className="row">
-                <label className="col-sm-6 col-form-label text-primary"><h5><strong>VM sub-total: &nbsp;US$&nbsp;
+              {this.renderSlider(0, 'Basic')}
+              {this.renderSlider(1, 'Medium')}
+              {this.renderSlider(2, 'High')}
+              {this.renderSlider(3, 'Ultra')}
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">VM config</th>
+                    <th scope="col">Unit price</th>
+                    <th scope="col">Number</th>
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Basic {this.renderInfoIcon("B2S: 2 vCPU, 4GB RAM & 8GB temporary storage")}</th>
+                    <td>{this.state.vmprices[0]}</td>
+                    <td>{this.state.ranges[0]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[0] * this.state.ranges[0])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Medium {this.renderInfoIcon("B2MS: 2 vCPU, 8GB RAM & 16GB temporary storage")}</th>
+                    <td>{this.state.vmprices[1]}</td>
+                    <td>{this.state.ranges[1]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[1] * this.state.ranges[1])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">High {this.renderInfoIcon("B4MS: 4 vCPU, 16GB RAM & 32GB temporary storage")}</th>
+                    <td>{this.state.vmprices[2]}</td>
+                    <td>{this.state.ranges[2]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[2] * this.state.ranges[2])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Ultra {this.renderInfoIcon("B8MS: 8 vCPU, 32GB RAM & 64GB temporary storage")}</th>
+                    <td>{this.state.vmprices[3]}</td>
+                    <td>{this.state.ranges[3]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[3] * this.state.ranges[3])}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </form>
+            <form className="tab-pane fade" id="horizon" role="tabpanel" aria-labelledby="horizon-tab">
+              <div className="form-group">
+                <div className="row">
+                  <legend className="col-sm-2 col-form-label">Subscription terms</legend>
+                  <div className="col-sm-2">
+                    <select defaultValue={this.state.vmHorizonSubTerm} className="form-control" onChange={(e) => this.updateHorizonSubTerm(e)} >
+                      <option value="1">1 month</option>
+                      <option value="12">12 months</option>
+                      <option value="24">24 months</option>
+                      <option value="36">36 months</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="form-group row">
+                <div className="col-sm-6">
+                  <div className="form-check form-check-inline">
+                    <label className="form-check-label" htmlFor="weekendCheck">
+                      Turn off Value and Professional machines on weekends?
+                  </label>
+                    <input className="form-check-input" type="checkbox" id="weekendCheck" style={{ 'marginLeft': "10px" }} checked={this.state.weekendCheck} onChange={(e) => this.updateWeekendCheck(e)} />
+                  </div>
+                </div>
+              </div>
+              {this.renderSlider(0, 'Value')}
+              {this.renderSlider(1, 'Professional')}
+              {this.renderSlider(2, 'Premium')}
+              {this.renderSlider(3, 'Performance')}
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th scope="col">VM config</th>
+                    <th scope="col">Unit price</th>
+                    <th scope="col">Number</th>
+                    <th scope="col">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Value {this.renderInfoIcon("Value Desktops: 1 vCPU, 2GB RAM & 30GB HD storage")}</th>
+                    <td>{this.state.vmprices[0]}</td>
+                    <td>{this.state.ranges[0]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[0] * this.state.ranges[0])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Professional {this.renderInfoIcon("Professional Desktops: 2 vCPU, 4GB RAM & 60GB HD storage")}</th>
+                    <td>{this.state.vmprices[1]}</td>
+                    <td>{this.state.ranges[1]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[1] * this.state.ranges[1])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Premium {this.renderInfoIcon("Premium Desktops: 4 vCPU, 8GB RAM & 120GB HD storage")}</th>
+                    <td>{this.state.vmprices[2]}</td>
+                    <td>{this.state.ranges[2]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[2] * this.state.ranges[2])}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Performance {this.renderInfoIcon("Performance Desktops / Hosted Apps Servers: 8 vCPU, 16GB RAM & 240GB HD storage")}</th>
+                    <td>{this.state.vmprices[3]}</td>
+                    <td>{this.state.ranges[3]}</td>
+                    <td className="vmprice">{Math.round(this.state.vmprices[3] * this.state.ranges[3])}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan="4">
+                      The total prices include Named User License for Horizon Desktop Users of ${this.state.horizonPrice[this.state.vmHorizonSubTerm][4]} / user / month.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="form-group">
+                <div className="row">
+                  <legend className="col-sm-2 col-form-label">Additional Storage {this.renderInfoIcon("Additional Basic Storage sold in 1TB blocks")}</legend>
+                  <div className="col-sm-1">
+                    <input type="number" className="form-control" min="1" name="horizonStorage" id="horizonStorage" value={this.state.horizonStorage} onChange={(e) => this.updateState(e, 'horizonStorage')}></input>
+                  </div>
+                  <legend className="col-sm-8 col-form-label">
+                    <span style={{ marginRight: "15px" }}>&#215;</span> 1 TB unit{this.state.horizonStorage > 1 ? 's' : ''} (${this.state.horizonPrice[this.state.vmHorizonSubTerm][2]} / TB)
+                </legend>
+                </div>
+              </div>
+              <div className="form-group">
+                <div className="row">
+                  <div className="col-sm-6">
+                    Additional Add-on options: <br />
+                    <b>Direct Connect - Cross Connect - 1 Gbps</b>: ${this.state.horizonPrice[this.state.vmHorizonSubTerm][0]}  / month <br />
+                    <b>Direct Connect Network Exchange - 1 Gbps</b>: ${this.state.horizonPrice[this.state.vmHorizonSubTerm][1]}  / month
+                </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div className="form-group">
+            <div className="row">
+              <label className="col-sm-6 col-form-label text-primary"><h5><strong>VM sub-total: &nbsp;US$&nbsp;
                   {this.getTotalVMPrice()} per month
                   </strong></h5>
-                </label>
-              </div>
+              </label>
             </div>
-          </form>
+          </div>
         </div>
       </div>,
       <div className="card border-primary">
@@ -377,7 +506,7 @@ class VM extends Component {
           <form>
             <div className="form-group row">
               <label className="col-sm-3 col-form-label">Service scheme</label>
-              <div className="col-sm-4 slidecontainer">
+              <div className="col-sm-4">
                 <select defaultValue={this.state.dataScheme} className="form-control" onChange={(e) => this.updateState(e, 'dataScheme')} >
                   <option value="1">Bandwidth</option>
                   <option value="2">ExpressRoute (50Mbps port speed)</option>
